@@ -1,0 +1,128 @@
+import java.io.*;
+import java.net.*;
+
+public class TcpServer {
+
+    public static void main(String[] args) {
+        int port = 5000;
+
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Server listening on port " + port);
+
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected");
+
+                // Thread pour gérer chaque client
+                new Thread(() -> handleClient(clientSocket)).start();
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void handleClient(Socket socket) {
+        try {
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader keyboard = new BufferedReader(
+                    new InputStreamReader(System.in));
+
+            // Thread lecture du client
+            new Thread(() -> {
+                try {
+                    while (true) {
+                        String message = in.readLine();
+                        if (message == null || message.equalsIgnoreCase("goodbye")) {
+                            System.out.println("Client disconnected");
+                            socket.close();
+                            break;
+                        }
+                        System.out.println("Client: " + message);
+                    }
+                } catch (IOException e) {
+                    System.out.println("Client disconnected unexpectedly");
+                }
+            }).start();
+
+            // Thread écriture vers le client
+            new Thread(() -> {
+                try {
+                    while (true) {
+                        System.out.print("Server: ");
+                        String message = keyboard.readLine();
+                        out.println(message);
+                        if (message.equalsIgnoreCase("goodbye")) {
+                            socket.close();
+                            break;
+                        }
+                    }
+                } catch (IOException e) {
+                    System.out.println("Server stopped sending messages");
+                }
+            }).start();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+//
+import java.io.*;
+import java.net.*;
+
+public class TcpClient {
+
+    public static void main(String[] args) {
+        String host = "127.0.0.1";
+        int port = 5000;
+
+        try (Socket socket = new Socket(host, port)) {
+
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader keyboard = new BufferedReader(
+                    new InputStreamReader(System.in));
+
+            // Thread lecture du serveur
+            new Thread(() -> {
+                try {
+                    while (true) {
+                        String response = in.readLine();
+                        if (response == null || response.equalsIgnoreCase("goodbye")) {
+                            System.out.println("Server disconnected");
+                            socket.close();
+                            break;
+                        }
+                        System.out.println("Server: " + response);
+                    }
+                } catch (IOException e) {
+                    System.out.println("Server disconnected unexpectedly");
+                }
+            }).start();
+
+            // Thread écriture vers le serveur
+            new Thread(() -> {
+                try {
+                    while (true) {
+                        System.out.print("Client: ");
+                        String message = keyboard.readLine();
+                        out.println(message);
+                        if (message.equalsIgnoreCase("goodbye")) {
+                            socket.close();
+                            break;
+                        }
+                    }
+                } catch (IOException e) {
+                    System.out.println("Client stopped sending messages");
+                }
+            }).start();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
