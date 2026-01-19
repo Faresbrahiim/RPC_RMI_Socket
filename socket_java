@@ -1,4 +1,18 @@
-```
+# Java TCP Multithreaded Chat
+
+This README contains a **simple multithreaded TCP chat application in Java**.
+
+* One server
+* Multiple clients
+* One thread per client
+* Messages exchanged until `goodbye`
+
+---
+
+## TCP SERVER (Multithreaded)
+
+```java
+// TcpServer.java
 import java.io.*;
 import java.net.*;
 
@@ -14,56 +28,48 @@ public class TcpServer {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client connected");
 
-                // Thread pour gérer chaque client
-                new Thread(() -> handleClient(clientSocket)).start();
+                // Handle each client in a separate thread
+                new ClientHandler(clientSocket).start();
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+}
 
-    private static void handleClient(Socket socket) {
-        try {
+class ClientHandler extends Thread {
+    private Socket socket;
+
+    public ClientHandler(Socket socket) {
+        this.socket = socket;
+    }
+
+    public void run() {
+        try (
             BufferedReader in = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(
+                socket.getOutputStream(), true);
             BufferedReader keyboard = new BufferedReader(
-                    new InputStreamReader(System.in));
+                new InputStreamReader(System.in))
+        ) {
+            String message;
 
-            // Thread lecture du client
-            new Thread(() -> {
-                try {
-                    while (true) {
-                        String message = in.readLine();
-                        if (message == null || message.equalsIgnoreCase("goodbye")) {
-                            System.out.println("Client disconnected");
-                            socket.close();
-                            break;
-                        }
-                        System.out.println("Client: " + message);
-                    }
-                } catch (IOException e) {
-                    System.out.println("Client disconnected unexpectedly");
-                }
-            }).start();
+            while ((message = in.readLine()) != null) {
+                System.out.println("Client: " + message);
 
-            // Thread écriture vers le client
-            new Thread(() -> {
-                try {
-                    while (true) {
-                        System.out.print("Server: ");
-                        String message = keyboard.readLine();
-                        out.println(message);
-                        if (message.equalsIgnoreCase("goodbye")) {
-                            socket.close();
-                            break;
-                        }
-                    }
-                } catch (IOException e) {
-                    System.out.println("Server stopped sending messages");
-                }
-            }).start();
+                if (message.equals("goodbye")) break;
+
+                System.out.print("Server: ");
+                String response = keyboard.readLine();
+                out.println(response);
+
+                if (response.equals("goodbye")) break;
+            }
+
+            socket.close();
+            System.out.println("Client disconnected");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -71,8 +77,13 @@ public class TcpServer {
     }
 }
 ```
-//
-```
+
+---
+
+## TCP CLIENT
+
+```java
+// TcpClient.java
 import java.io.*;
 import java.net.*;
 
@@ -82,47 +93,29 @@ public class TcpClient {
         String host = "127.0.0.1";
         int port = 5000;
 
-        try (Socket socket = new Socket(host, port)) {
-
+        try (
+            Socket socket = new Socket(host, port);
             BufferedReader in = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(
+                socket.getOutputStream(), true);
             BufferedReader keyboard = new BufferedReader(
-                    new InputStreamReader(System.in));
+                new InputStreamReader(System.in))
+        ) {
+            String message;
 
-            // Thread lecture du serveur
-            new Thread(() -> {
-                try {
-                    while (true) {
-                        String response = in.readLine();
-                        if (response == null || response.equalsIgnoreCase("goodbye")) {
-                            System.out.println("Server disconnected");
-                            socket.close();
-                            break;
-                        }
-                        System.out.println("Server: " + response);
-                    }
-                } catch (IOException e) {
-                    System.out.println("Server disconnected unexpectedly");
-                }
-            }).start();
+            while (true) {
+                System.out.print("Client: ");
+                message = keyboard.readLine();
+                out.println(message);
 
-            // Thread écriture vers le serveur
-            new Thread(() -> {
-                try {
-                    while (true) {
-                        System.out.print("Client: ");
-                        String message = keyboard.readLine();
-                        out.println(message);
-                        if (message.equalsIgnoreCase("goodbye")) {
-                            socket.close();
-                            break;
-                        }
-                    }
-                } catch (IOException e) {
-                    System.out.println("Client stopped sending messages");
-                }
-            }).start();
+                if (message.equals("goodbye")) break;
+
+                String response = in.readLine();
+                System.out.println("Server: " + response);
+
+                if (response.equals("goodbye")) break;
+            }
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -130,3 +123,24 @@ public class TcpClient {
     }
 }
 ```
+
+---
+
+## Compile and Run
+
+```bash
+javac TcpServer.java TcpClient.java
+java TcpServer
+```
+
+In another terminal:
+
+```bash
+java TcpClient
+```
+
+You can run **multiple clients simultaneously**.
+
+---
+
+End of README.
