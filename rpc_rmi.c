@@ -128,6 +128,7 @@ import java.rmi.Naming;
 public class MathServer {
     public static void main(String[] args) {
         try {
+            LocateRegistry.createRegistry(1099);
             MathImpl obj = new MathImpl();
             Naming.rebind("rmi://localhost/math", obj);
             System.out.println("Serveur RMI lancé !");
