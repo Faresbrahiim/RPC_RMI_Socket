@@ -1,0 +1,227 @@
+# Socket Programming – UDP (C)
+
+This README contains **UDP socket examples only**, grouped by domain:
+
+* **UDP + AF_INET** (Internet)
+* **UDP + AF_UNIX** (Local IPC)
+
+Code is minimal and ready for revision/exam use.
+
+---
+
+## 1️⃣ UDP + AF_INET (Internet Datagram Sockets)
+
+### Server (UDP + INET)
+
+```c
+// udp_inet_server.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+#define PORT 5000
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sockfd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    char buffer[BUFFER_SIZE];
+
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+
+    while (1) {
+        memset(buffer, 0, BUFFER_SIZE);
+        recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
+                 (struct sockaddr*)&client_addr, &client_len);
+        printf("Client: %s\n", buffer);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+
+        printf("Server: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        sendto(sockfd, buffer, strlen(buffer), 0,
+               (struct sockaddr*)&client_addr, client_len);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+    }
+
+    close(sockfd);
+    return 0;
+}
+```
+
+### Client (UDP + INET)
+
+```c
+// udp_inet_client.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+#define PORT 5000
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sockfd;
+    struct sockaddr_in server_addr;
+    socklen_t server_len = sizeof(server_addr);
+    char buffer[BUFFER_SIZE];
+
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    while (1) {
+        printf("Client: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        sendto(sockfd, buffer, strlen(buffer), 0,
+               (struct sockaddr*)&server_addr, server_len);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+
+        memset(buffer, 0, BUFFER_SIZE);
+        recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
+        printf("Server: %s\n", buffer);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+    }
+
+    close(sockfd);
+    return 0;
+}
+```
+
+---
+
+## 2️⃣ UDP + AF_UNIX (UNIX Domain Datagram Sockets)
+
+### Server (UDP + UNIX)
+
+```c
+// udp_unix_server.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define SERVER_SOCKET_PATH "/tmp/unix_udp_server"
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sockfd;
+    struct sockaddr_un server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    char buffer[BUFFER_SIZE];
+
+    sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sun_family = AF_UNIX;
+    strcpy(server_addr.sun_path, SERVER_SOCKET_PATH);
+
+    unlink(SERVER_SOCKET_PATH);
+    bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+
+    while (1) {
+        memset(buffer, 0, BUFFER_SIZE);
+        recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
+                 (struct sockaddr*)&client_addr, &client_len);
+        printf("Client: %s\n", buffer);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+
+        printf("Server: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        sendto(sockfd, buffer, strlen(buffer), 0,
+               (struct sockaddr*)&client_addr, client_len);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+    }
+
+    close(sockfd);
+    unlink(SERVER_SOCKET_PATH);
+    return 0;
+}
+```
+
+### Client (UDP + UNIX)
+
+```c
+// udp_unix_client.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define SERVER_SOCKET_PATH "/tmp/unix_udp_server"
+#define CLIENT_SOCKET_PATH "/tmp/unix_udp_client"
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sockfd;
+    struct sockaddr_un server_addr, client_addr;
+    socklen_t server_len = sizeof(server_addr);
+    char buffer[BUFFER_SIZE];
+
+    sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+    memset(&client_addr, 0, sizeof(client_addr));
+    client_addr.sun_family = AF_UNIX;
+    strcpy(client_addr.sun_path, CLIENT_SOCKET_PATH);
+
+    unlink(CLIENT_SOCKET_PATH);
+    bind(sockfd, (struct sockaddr*)&client_addr, sizeof(client_addr));
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sun_family = AF_UNIX;
+    strcpy(server_addr.sun_path, SERVER_SOCKET_PATH);
+
+    while (1) {
+        printf("Client: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        sendto(sockfd, buffer, strlen(buffer), 0,
+               (struct sockaddr*)&server_addr, server_len);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+
+        memset(buffer, 0, BUFFER_SIZE);
+        recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
+        printf("Server: %s\n", buffer);
+
+        if (strcmp(buffer, "goodbye") == 0) break;
+    }
+
+    close(sockfd);
+    unlink(CLIENT_SOCKET_PATH);
+    return 0;
+}
+```
+
+---
+
+End of README 2.
